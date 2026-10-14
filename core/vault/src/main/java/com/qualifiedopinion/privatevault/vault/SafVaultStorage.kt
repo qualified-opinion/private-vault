@@ -19,6 +19,8 @@ import java.nio.file.FileAlreadyExistsException
  *   [onProviderFailure] and rethrown as [VaultUnavailableException] (§5.4: "vault gone").
  *   Our own checks (name clash, missing file in a fresh listing) are not provider failures.
  * - [readOnly] is asked before every write.
+ * - [rootDocumentId] defaults to the tree's own root. A descendant folder can be used instead (the
+ *   benchmark's scratch vault); every URI is still built from [treeUri], so no other grant is needed.
  */
 @Suppress("TooManyFunctions") // the VaultStorage interface plus cache helpers
 class SafVaultStorage(
@@ -27,8 +29,8 @@ class SafVaultStorage(
     private val readOnly: () -> Boolean,
     private val preCheck: () -> Unit = {},
     private val onProviderFailure: (Throwable) -> Unit = {},
+    private val rootDocumentId: String = DocumentsContract.getTreeDocumentId(treeUri),
 ) : VaultStorage {
-    private val rootDocumentId: String = DocumentsContract.getTreeDocumentId(treeUri)
     private val dirIds = HashMap<String, String>().apply { put(ROOT, rootDocumentId) }
     private val children = HashMap<String, MutableMap<String, SafIo.Entry>>()
     private val guard = Any()

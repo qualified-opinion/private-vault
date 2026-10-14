@@ -9,6 +9,8 @@ android {
     defaultConfig {
         minSdk = 26
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // argon2kt (JNI) and Tink need keep rules in minified apps; see the file.
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     compileOptions {

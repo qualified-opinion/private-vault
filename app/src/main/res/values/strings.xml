@@ -1,4 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Private Vault</string>
+
+    <!-- Setup -->
+    <string name="setup_title">Set up your vault</string>
+    <string name="setup_body_card">Pick or create a folder on the SD card for the vault. Your photos and videos are stored there, encrypted. The folder stays on the card if the app is uninstalled.</string>
+    <string name="setup_body_no_card">No SD card found. Insert the card and pick a folder on it. You can also pick a folder in internal storage, but the vault then won\'t be on the card.</string>
+    <string name="setup_pick_folder">Pick folder</string>
+    <string name="pick_another_folder">Pick another folder</string>
+    <string name="primary_warning_title">This folder is in internal storage</string>
+    <string name="primary_warning_body">The vault is meant to live on the SD card. A vault in internal storage uses the phone\'s small internal space, and it can\'t be moved to the card later. The app will never switch between the two by itself.</string>
+    <string name="primary_warning_continue">Use internal storage anyway</string>
+    <string name="existing_vault_title">This folder already holds a vault</string>
+    <string name="existing_vault_body">Open this vault with its PIN? No new vault will be created here.</string>
+    <string name="existing_vault_no_key">This vault was set up by an earlier install or another phone, so this install can\'t open it with a PIN. Restoring with the recovery phrase arrives in a later version. Nothing in the folder was changed.</string>
+    <string name="existing_vault_use">Use this vault</string>
+    <string name="pin_set_title">Choose a PIN</string>
+    <string name="pin_confirm_title">Enter the PIN again</string>
+    <string name="pin_rules">6 to 12 digits</string>
+    <string name="pin_mismatch">The PINs didn\'t match. Start again.</string>
+    <string name="pin_delete">Delete</string>
+    <string name="pin_ok">OK</string>
+    <plurals name="pin_digits_entered">
+        <item quantity="one">%d digit entered</item>
+        <item quantity="other">%d digits entered</item>
+    </plurals>
+    <string name="data_loss_title">There is no back door</string>
+    <string name="data_loss_body">Your PIN is the only way into this vault on this phone. A recovery phrase will be added in a later version. If you forget the PIN and lose the recovery phrase, your data is lost for good. Nobody can recover it.</string>
+    <string name="data_loss_checkbox">I understand: forgot PIN and lost phrase means data lost.</string>
+    <string name="data_loss_create">Create vault</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Progress -->
+    <string name="working_checking">Checking the vault folder…</string>
+    <string name="working_calibrating">Tuning PIN protection for this phone…</string>
+    <string name="working_creating">Creating the vault…</string>
+    <string name="working_unlocking">Unlocking…</string>
+
+    <!-- Lock / unlocked -->
+    <string name="unlock_title">Enter PIN</string>
+    <string name="unlocked_title">Vault unlocked</string>
+    <plurals name="unlocked_items">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <string name="unlocked_read_only">The card is read-only: you can view items, but not import or delete.</string>
+    <string name="lock">Lock</string>
+
+    <!-- Planning pack §5.4 error UI -->
+    <string name="unavailable_title">Vault folder not available</string>
+    <string name="unavailable_body">Vault folder not available. Insert the card or pick the folder again.</string>
+    <string name="retry">Retry</string>
+    <string name="repick_folder">Re-pick folder</string>
+    <string name="reason_no_permission">The app lost access to the folder.</string>
+    <string name="reason_volume_missing">The card was removed or isn\'t mounted.</string>
+    <string name="reason_vault_missing">The folder has no vault in it.</string>
+    <string name="reason_wrong_vault">The folder holds a different vault.</string>
+    <string name="reason_vault_damaged">The vault\'s key file is damaged.</string>
+    <string name="reason_provider_error">The card couldn\'t be read.</string>
+
+    <!-- Errors -->
+    <string name="error_folder_grant">The app couldn\'t keep access to that folder. Pick it again.</string>
+    <string name="error_folder_provider">Pick a folder on the SD card or in this phone\'s storage. Other places (cloud, Downloads) can\'t hold the vault.</string>
+    <string name="error_folder_read_only">That card is read-only, so a vault can\'t be created on it.</string>
+    <string name="error_folder_io">The folder couldn\'t be read or written. Check the card and try again.</string>
+    <string name="error_vault_exists">That folder already holds a vault. Nothing was changed.</string>
+    <string name="error_vault_damaged">The vault\'s key file is damaged and its backup can\'t be read.</string>
+    <string name="error_kdf_memory">This phone doesn\'t have enough free memory for PIN protection. Close other apps and try again.</string>
+    <string name="error_cannot_create">The vault couldn\'t be created.</string>
+    <string name="error_wrong_pin">Wrong PIN</string>
+    <string name="error_key_missing">This install has no key for the vault (the app was reinstalled or its data cleared). Restoring with the recovery phrase arrives in a later version.</string>
+    <string name="error_cannot_open">The vault couldn\'t be opened on this phone.</string>
+    <string name="error_repick_other_vault">That folder holds a different vault. Pick the folder of this vault.</string>
+    <string name="error_repick_no_vault">That folder has no vault in it. Pick the folder of this vault.</string>
 </resources>
