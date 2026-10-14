@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Test-only SAF provider over a temp dir (androidTest APK only; never in the app). -->
+    <application>
+        <provider
+            android:name="com.qualifiedopinion.privatevault.vault.TestDocumentsProvider"
+            android:authorities="com.qualifiedopinion.privatevault.vault.test.documents"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
+    </application>
+</manifest>
