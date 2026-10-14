@@ -28,3 +28,10 @@
 - .github/workflows/ci.yml, scripts/check-permissions.sh
 - config/detekt.yml, app/lint.xml
 - docs/STATUS.md, docs/HANDOFF.md (update this plan as done)
+
+## Status
+Done on `feat/pr1-scaffold` (not pushed). All acceptance items 1–7 were verified locally. Evidence and versions are in `docs/STATUS.md`.
+Additions beyond the original file list:
+- `scripts/canary-internet.sh` runs the INTERNET canary (CI + local)
+- `gradlew` wrapper (Gradle 9.8.1)
+- CI also runs `assembleDebug` and uploads the debug APK for sideloading
