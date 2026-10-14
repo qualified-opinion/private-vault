@@ -2,6 +2,39 @@
 
 Protocol (planning pack §9): before an engine switch, commit `wip(prN): <state>`, then add an entry at the top of this file. The incoming engine reads this file, `docs/STATUS.md` and `docs/plans/prN.md` first, then runs the tests before changing anything.
 
+## Handoff 2026-10-15 07:26 Asia/Manila Codex→next session / Kiln
+Branch: `feat/pr3-storage` @ `8adb86f` + uncommitted completion changes; main remains `74bfd5e`.
+Done: PR3 implementation, CI and documentation from `/tmp/pr3prompt.txt` and `docs/plans/pr3.md`.
+- Existing commits: `9307e3d` plan first; `0a0e8a7` vault storage; `8adb86f` app/setup/unlock WIP.
+- Completed interrupted build fixes, including separate `PinBuffer.kt`, SAF test constructor and releaseCheck shared-runtime keeps.
+- Monitored SAF access now validates a fresh vault id before provider I/O and refreshes read-only flags before mutation. AppGraph observes both availability and session state, so a slow unwrap finishing after removal is locked too. Regression instrumentation added.
+- Added API 34 x86_64 emulator CI with KVM udev rule. It runs crypto/vault debug instrumentation and minified app releaseCheck instrumentation; `SafBenchmarkTest` is explicitly excluded. Existing build job, permission gate and canary are byte-for-byte unchanged.
+- Final timed Gradle check: lint, detekt, testDebugUnitTest, assembleRelease, assembleDebug, crypto/vault debug androidTest, app releaseCheck + releaseCheck androidTest: BUILD SUCCESSFUL in 1m 58s. JVM: 102 passed (60 crypto, 39 vault, 3 scaffold), zero failures/errors/skips. APK permission and releaseCheck-reference scripts passed. YAML parsed; simulated tracer failure exits 2.
+- STATUS has PR2 merged at PR #2/main 74bfd5e, PR3 evidence, adb benchmark/unlock commands, honest local instrumentation limit and the exact PR6 truncation note.
+In progress / blocked:
+- Completion commits could not be created: `git add` failed because `.git/index.lock` is read-only under this session's filesystem policy. Changes are unstaged in the working tree, including new `ui/common/PinBuffer.kt`. Do not discard them. No Git history was rewritten.
+- In a session with Git write access, create these logical commits (paths shown below), then verify a clean tree. There is no need to rerun successful builds unless code changes.
+
+| Suggested commit | Paths |
+|---|---|
+| `fix(vault): revalidate storage and lock late unlocks after removal` | `AppGraph.kt`, `ReleaseUnlockTest.kt`, `VolumeMonitor.kt`, `SafVaultStorage.kt`, `SafVaultStorageTest.kt` |
+| `fix(app): finish PIN UI checks and releaseCheck test linkage` | `VaultViewModel.kt`, `ui/common/MessagePanel.kt`, `PinPad.kt`, new `PinBuffer.kt`, `app/proguard-releasecheck.pro`, `scripts/check-releasecheck-refs.sh` |
+| `ci(pr3): run SAF and minified unlock tests on API 34` | `.github/workflows/ci.yml` |
+| `docs(pr3): record verification and phone acceptance handoff` | `docs/STATUS.md`, `docs/HANDOFF.md`, `docs/plans/pr3.md` |
+
+Failing tests: none in completed local checks. Instrumented tests **not run locally** (no usable `/dev/kvm`, no connected phone); APKs compile only. CI has not run on GitHub. Phone benchmark and manual grant/eject/revoke/reboot/update/uninstall acceptance remain unverified.
+Decisions made (with reason):
+- Every Gradle invocation must be `timeout 20m ./gradlew ... --no-daemon --console=plain`. The final build also uses `-Pkotlin.compiler.execution.strategy=in-process` because the daemon marker location in home is read-only. No hang occurred; one detekt ThrowsCount finding from the new guard was fixed before the final successful build.
+- The unchanged permission script calls Gradle internally. To honor the timeout without modifying the gate, run it with `BASH_ENV` pointing to a temporary file containing `function ./gradlew() { timeout 20m ./gradlew "$@" --no-daemon --console=plain; }`. An initial attempt to export the function failed, causing one unbounded dependency query; the corrected bounded gate run passed.
+- releaseCheck is minified/non-debuggable but debug-signed. Test-only rules keep our public APIs and shared Kotlin/coroutines/test runtime; they do not blanket-keep Tink/argon2kt. Reference tracing rejects missing non-platform calls and tool startup failures; it does not prove runtime JNI works.
+- Only ExternalStorageProvider trees are supported in production. Internal storage is an explicit setup choice with a warning, never a fallback. Fresh vault-id checks add provider queries; full index-build time needs phone evidence.
+- Follow PR2's expected-header rule and consume/wipe PIN arrays. Recovery remains PR8; background/screen-off lock, throttling and software-Keystore warning remain PR7.
+Do not touch: main; PR1 gate/canary/permission-removal markers and Log stripping; local.properties; crypto/vault 64 MiB unit-test heaps. Do not push or use gh.
+Open questions for Jan/Kiln:
+- Run emulator CI in an authorized future push, and run the minified unlock test and 1 GiB benchmark on the target phone (STATUS commands). Benchmark uses a persisted tree grant and app-specific baseline on the same card; record page-cache limits and full index-build latency.
+- Verify eject/revoke lock within 1 s, reinsertion Retry, wrong-vault re-pick, read-only view, reboot/update grants, cleanup/delete and vault survival after uninstall. Uninstall loses the Keystore alias; PIN-only reinstall recovery is not supported before PR8.
+- Review provider-dependent rename/fsync durability and the static-check exceptions/shared-runtime keep rules. Planning-pack §9 device/API/filesystem questions remain open.
+
 ## Handoff 2026-10-15 06:20 Asia/Manila Claude Code→next session
 Branch: feat/pr2-crypto @ (this docs commit; code at 8f3cc8b), cut from main @ 5ef91a6 (PR1 merged as PR #1)
 Done: All of PR2 scope in `docs/plans/pr2.md`.
