@@ -4,6 +4,13 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Manual run, e.g. before a merge: largeTests runs the crypto streaming test at 3 GiB instead of 256 MiB.
+  workflow_dispatch:
+    inputs:
+      largeTests:
+        description: "Run the 3 GiB crypto streaming test (-PlargeTests)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -34,7 +41,10 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0"
 
       - name: Lint, detekt, unit tests, release + debug builds
-        run: ./gradlew lint detekt testDebugUnitTest assembleRelease assembleDebug --console=plain
+        run: >-
+          ./gradlew lint detekt testDebugUnitTest assembleRelease assembleDebug
+          :core:crypto:assembleDebugAndroidTest --console=plain
+          ${{ inputs.largeTests && '-PlargeTests' || '' }}
 
       - name: Permission gate (no INTERNET / network libs)
         run: scripts/check-permissions.sh
