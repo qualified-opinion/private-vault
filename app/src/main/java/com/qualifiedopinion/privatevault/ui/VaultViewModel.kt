@@ -91,9 +91,8 @@ class VaultViewModel(private val graph: AppGraph) : ViewModel() {
 
     init {
         viewModelScope.launch {
-            combine(graph.monitor.state, graph.session.isUnlocked) { a, u -> a to u }.collect { (availability, unlocked) ->
-                onVaultState(availability, unlocked)
-            }
+            combine(graph.monitor.state, graph.session.isUnlocked) { a, u -> a to u }
+                .collect { (availability, unlocked) -> onVaultState(availability, unlocked) }
         }
     }
 
@@ -118,13 +117,16 @@ class VaultViewModel(private val graph: AppGraph) : ViewModel() {
     }
 
     /** Use the existing vault in the picked folder (only offered when this install holds its key). */
+    @Suppress("ReturnCount") // guard clauses
     fun onUseExistingVault() {
         val tree = pendingTree ?: return
         val volume = pendingVolume ?: return
         val id = pendingVaultId ?: return
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                graph.location.save(LocationRecord(treeUri = tree.toString(), volume = volume.volume, vaultId = id.toHex()))
+                graph.location.save(
+                    LocationRecord(treeUri = tree.toString(), volume = volume.volume, vaultId = id.toHex()),
+                )
                 clearPending(releaseGrant = false)
                 graph.monitor.fullCheck()
             }
@@ -156,6 +158,7 @@ class VaultViewModel(private val graph: AppGraph) : ViewModel() {
     }
 
     /** The user confirmed "forgot PIN and lost phrase = data lost": calibrate Argon2 and create the vault. */
+    @Suppress("ReturnCount") // guard clauses
     fun onCreateVault() {
         val tree = pendingTree ?: return
         val volume = pendingVolume ?: return
@@ -169,7 +172,9 @@ class VaultViewModel(private val graph: AppGraph) : ViewModel() {
                     mutableScreen.value = Screen.Working(R.string.working_creating)
                     val files = VaultFiles(SafVaultStorage(tree, graph.safIo, readOnly = { false }))
                     val id = graph.keys.create(files, pin, params, graph.session) // wipes pin
-                    graph.location.save(LocationRecord(treeUri = tree.toString(), volume = volume.volume, vaultId = id.toHex()))
+                    graph.location.save(
+                        LocationRecord(treeUri = tree.toString(), volume = volume.volume, vaultId = id.toHex()),
+                    )
                     clearPending(releaseGrant = false)
                     graph.monitor.fullCheck()
                     null
@@ -250,6 +255,7 @@ class VaultViewModel(private val graph: AppGraph) : ViewModel() {
         (s is Screen.Working && s != UNLOCKING)
 
     /** Runs on IO. Decides what the setup flow does with a freshly picked folder. */
+    @Suppress("ReturnCount") // guard clauses
     private fun evaluatePickedFolder(tree: Uri): Screen {
         abandonPending()
         try {
@@ -322,6 +328,7 @@ class VaultViewModel(private val graph: AppGraph) : ViewModel() {
     }
 
     /** Runs on IO. Returns the refusal screen, or null if the folder was accepted. */
+    @Suppress("ReturnCount") // guard clauses
     private fun repick(tree: Uri): Screen? {
         val record = graph.location.load() ?: return welcome()
         val reason = currentReason(UnavailableReason.VAULT_MISSING)

@@ -109,6 +109,7 @@ class SafVaultStorage(
     fun rootFlags(): Int = provider { io.query(treeUri, uriOf(rootDocumentId)).flags }
 
     private fun requireWritable() {
+        preCheck() // refresh mount/provider flags before deciding whether this operation may write
         if (readOnly()) throw VaultReadOnlyException()
     }
 

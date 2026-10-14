@@ -19,8 +19,7 @@
 # in argon2kt's JNI or Tink's protobuf reflection. scripts/check-releasecheck-refs.sh verifies the
 # combined program has no missing references.
 -keep class kotlin.** { *; }
-# Not kotlinx.coroutines.debug: its JVM-only agent (java.lang.instrument, sun.misc) never loads on Android.
--keep class !kotlinx.coroutines.debug.**,kotlinx.coroutines.** { *; }
+-keep class kotlinx.coroutines.** { *; }
 -keep class androidx.concurrent.futures.** { *; }
 -keep class com.google.common.util.concurrent.ListenableFuture { *; }
 -keep class androidx.tracing.** { *; }

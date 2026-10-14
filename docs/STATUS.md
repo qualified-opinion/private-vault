@@ -3,8 +3,76 @@
 | PR | Branch | State |
 |---|---|---|
 | PR1 Scaffold, CI, lint, no-INTERNET gate | `feat/pr1-scaffold` | **Merged** (squash) as PR #1 → `main` @ 5ef91a6. |
-| PR2 Crypto core and tests | `feat/pr2-crypto` | Implemented locally, all checks green, 3 GiB run logged. Not pushed. Instrumented tests compiled but **not run** (no device here). Awaiting the device run, Kiln review and Jan's OK. |
-| PR3–PR8 | — | Not started |
+| PR2 Crypto core and tests | `feat/pr2-crypto` | Merged (squash) as PR #2 → main @ 74bfd5e |
+| PR3 Vault storage on SD (SAF folder) | `feat/pr3-storage` | Implemented locally; build, JVM checks and APK gates verified. Not pushed. Emulator/phone acceptance and completion commits pending (`.git` is read-only in this session), then Kiln review and Jan's OK. |
+| PR4–PR8 | — | Not started |
+
+## PR3 summary
+
+Plan: `docs/plans/pr3.md`. Storage lives in `:core:vault`; setup/unlock and the phone benchmark live in `:app`.
+
+- Added `VaultStorage`, `FileVaultStorage`, `SafIo`, `SafVaultStorage`, `VaultLocation`/`LocationStore`, `VolumeMonitor`, `VaultFiles`, `ItemRepository`/`ItemMeta`, `VaultIndex`, `VaultSession`, `VaultKeys` and typed storage exceptions. SAF uses `"rw"` PFD-backed channels, with descriptor ownership through auto-close streams. Location is persisted in `noBackupFilesDir/location.json` with tree URI, volume and vault id.
+- `vault.meta` writes use synced `.tmp`, read-back, rename and `.bak` fallback. Startup cleans `.part` files. Item operations encrypt all three files; delete removes all three and updates the memory index. Read-only storage blocks mutations. Every monitored provider call checks the grant, volume and fresh vault id; writes refresh read-only flags. This adds provider queries, so full index-build latency needs measuring on the phone.
+- Added `AppGraph`, setup/unlock/error screens and a byte-array PIN pad. Setup calibrates Argon2, confirms data-loss risk and explicitly warns for a primary-volume folder. Re-pick requires the same vault id. No silent internal fallback. The availability/session collector also locks an unwrap that finishes after removal was reported.
+- Added crypto consumer rules for argon2kt JNI and Tink protobuf fields. `releaseCheck` is minified, non-debuggable and debug-signed; the app's `testBuildType` is `releaseCheck`. Test-only keep rules preserve our callable APIs and shared test runtime libraries, without blanket keeps for Tink or argon2kt. `scripts/check-releasecheck-refs.sh` checks the combined app/test APK references and rejects tracer failures.
+- Added an API 34 x86_64 emulator job using `reactivecircus/android-emulator-runner@v2` and its documented KVM udev rule. It runs crypto, SAF storage and minified app instrumentation. `SafBenchmarkTest` is explicitly excluded. The existing build job, permission gate and canary are unchanged; the permission gate still checks the real unsigned release APK. The new job has not run on GitHub (nothing pushed).
+
+### PR3 verification log (local, 2026-10-15)
+
+The final command uses JDK 17 and the installed SDK:
+
+```bash
+export JAVA_HOME=/home/box/tools/jdk17
+export ANDROID_HOME=/home/box/tools/android-sdk
+timeout 20m ./gradlew lint detekt testDebugUnitTest assembleRelease assembleDebug \
+  :core:crypto:assembleDebugAndroidTest :core:vault:assembleDebugAndroidTest \
+  :app:assembleReleaseCheck :app:assembleReleaseCheckAndroidTest \
+  --no-daemon --console=plain -Pkotlin.compiler.execution.strategy=in-process
+```
+
+- Lint, detekt, unit tests and all listed APK assemblies: **passed** (`BUILD SUCCESSFUL in 1m 58s`). The app instrumentation APK is the releaseCheck variant because of `testBuildType`; no separate debug app instrumentation variant is configured.
+- JVM results: **102 tests, 0 failures/errors/skips**: crypto 60, vault 39, app 1, media 1, import 1. Vault tests cover metadata replace/crash/backup fallback, staging cleanup, id mismatch, read-only blocking, encrypted items, three-file deletion, index/session and location/availability rules. Crypto and vault test heaps remain 64 MiB.
+- `scripts/check-permissions.sh`: **passed**. The real release APK and merged manifests contain no network permissions; no denylisted network dependency is present. The script's internal Gradle call was bounded through a temporary `BASH_ENV` function, preserving the gate script unchanged. An initial attempt to export that function failed and let one dependency query run without the timeout; the corrected gate run passed with the timeout enforced.
+- CI YAML parsed locally; existing build job, gate and canary confirmed byte-for-byte unchanged.
+- `scripts/check-releasecheck-refs.sh`: **passed**. A simulated tracer startup failure correctly returned exit 2 instead of passing. This is a static reference check, not proof of runtime JNI/Keystore behaviour. Mapping confirms `VaultViewModel` is obfuscated in releaseCheck.
+- **Instrumented tests could not run locally: no usable `/dev/kvm` and no connected target phone.** APKs compile only. SAF fixture tests, including fresh-id/read-only checks, and the minified real-Argon2/Keystore unlock test still require an emulator run. The 1 GiB benchmark has not run.
+- Compiler execution was switched to in-process for the final command because the Kotlin daemon tried to create its marker in the read-only home directory. Existing Gradle/detekt deprecation and unstripped JNI-library warnings remain; no build hang occurred.
+
+Completion commits are pending: `git add` failed with `Unable to create '/workspace/private-vault/.git/index.lock': Read-only file system`. HEAD remains `8adb86f`; the implementation and documentation changes are in the working tree. No push, GitHub operation or change to main was made. `docs/HANDOFF.md` records the logical commit groups.
+
+Kiln focus: runtime JNI/Keystore and SAF tests still need execution; measure OEM provider behaviour and the extra fresh-vault-id queries during a full index build; SAF rename/fsync durability remains provider-dependent. Recovery is not implemented until PR8, and background/screen-off lock and throttling remain PR7. Static APK checks cannot establish the phone's removal latency or card durability.
+
+### Run the SAF benchmark on the target phone
+
+Install the minified app and its test APK. These use the debug signing key; use a test install, and preserve the installed key/data so you do not lose the vault's Keystore alias. Open the app and pick/setup an SD-card folder first so it holds a persisted read/write tree grant. Substitute that exact granted URI below (the sample URI is a placeholder).
+
+```bash
+adb install -r app/build/outputs/apk/releaseCheck/app-releaseCheck.apk
+adb install -r app/build/outputs/apk/androidTest/releaseCheck/app-releaseCheck-androidTest.apk
+adb shell am instrument -w -r \
+  -e class com.qualifiedopinion.privatevault.SafBenchmarkTest \
+  -e treeUri 'content://com.android.externalstorage.documents/tree/1234-ABCD%3APrivateVault' \
+  -e sizeMiB 1024 -e items 1000 \
+  com.qualifiedopinion.privatevault.test/androidx.test.runner.AndroidJUnitRunner
+adb logcat -d -s PV-BENCH:I '*:S'
+```
+
+The benchmark encrypts/writes and decrypts/reads 1 GiB through SAF and a plain File in app-specific external storage on the **same volume**, then performs 200 random 64 KiB reads and lists 1,000 items (3,000 files). It asserts SAF/File throughput ≥ 0.80 for write and read, average SAF seek < 50 ms and listing < 2 s; full `.vmeta` index-decryption time is logged separately. It works in a random scratch subfolder, cleans it on completion and needs at least about 2 GiB free space. Missing `treeUri` produces an explicit skip; CI excludes the class entirely. An unrooted phone cannot flush the page cache, so 1 GiB reads can be partly cached; record this limitation with the results.
+
+Also run the minified unlock test on the phone:
+
+```bash
+adb shell am instrument -w -r \
+  -e class com.qualifiedopinion.privatevault.ReleaseUnlockTest \
+  com.qualifiedopinion.privatevault.test/androidx.test.runner.AndroidJUnitRunner
+adb logcat -d -s PV-RELEASE:I '*:S'
+```
+
+Phone acceptance still pending: grant survives reboot/update; eject and revoke lock within 1 s; reinsertion + Retry; wrong-vault re-pick rejected; read-only view; startup cleanup; three-file deletion; vault folder survives uninstall. Uninstall loses the Keystore alias: PIN restore after reinstall remains PR8 work. Recovery, background/screen-off auto-lock and attempt throttling remain PR8/PR7 scope.
+
+### PR6 notes / carry-over
+
+PR6 note: the reported file size isn't verified until the end of the file is read, so the player must show an error at a cut-off point (truncated file) instead of just stopping.
 
 ## PR2 summary
 

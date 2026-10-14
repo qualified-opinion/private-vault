@@ -54,4 +54,10 @@ Out of scope: import (PR4), the grid and viewer (PR5), auto-lock on background a
 - releaseCheck needs extra keep rules for our own classes that only tests call. They must never reach Tink or argon2kt.
 
 ## Status
-Planned.
+Implemented locally on `feat/pr3-storage`; not pushed. Build/JVM/APK gates are recorded in `docs/STATUS.md`. Instrumentation compiles but remains unrun locally (no KVM); CI is configured, and phone acceptance remains pending.
+
+Completion details:
+- PIN-buffer implementation moved to `ui/common/PinBuffer.kt` to satisfy source-file lint/detekt rules.
+- Monitored provider calls validate a fresh vault id and read-only flags before I/O; the session collector also handles an unwrap finishing after removal.
+- `scripts/check-releasecheck-refs.sh` verifies minified app/test references, with explicit handling of tracer execution failures. Shared Kotlin/coroutines/test runtime keeps apply only to releaseCheck.
+- The app's only instrumentation target is releaseCheck, as required for R8 verification. The 1 GiB phone benchmark is explicitly excluded from CI.

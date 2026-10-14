@@ -6,6 +6,7 @@ import com.qualifiedopinion.privatevault.crypto.KeystoreKeyWrapper
 import com.qualifiedopinion.privatevault.vault.ItemRepository
 import com.qualifiedopinion.privatevault.vault.LocationRecord
 import com.qualifiedopinion.privatevault.vault.SafIo
+import com.qualifiedopinion.privatevault.vault.SafVaultStorage
 import com.qualifiedopinion.privatevault.vault.VaultAvailability
 import com.qualifiedopinion.privatevault.vault.VaultFiles
 import com.qualifiedopinion.privatevault.vault.VaultIndex
@@ -16,6 +17,7 @@ import com.qualifiedopinion.privatevault.vault.VolumeMonitor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.io.IOException
 
@@ -45,15 +47,18 @@ class AppGraph(context: Context) {
     init {
         monitor.start()
         scope.launch {
-            monitor.state.collect { state ->
-                if (state is VaultAvailability.Unavailable) session.lock()
-            }
+            combine(monitor.state, session.isUnlocked) { state, unlocked -> state to unlocked }
+                .collect { (state, unlocked) ->
+                    // A slow Argon2 unwrap may finish after the eject notification was handled.
+                    if (state is VaultAvailability.Unavailable && unlocked) session.lock()
+                }
         }
         scope.launch(Dispatchers.IO) { startupCheck() }
     }
 
-    /** The vault files for the bound location, over a monitored [com.qualifiedopinion.privatevault.vault.SafVaultStorage]. */
+    /** The vault files for the bound location, over a monitored [SafVaultStorage]. */
     @Synchronized
+    @Suppress("ReturnCount") // guard clauses
     fun files(): VaultFiles? {
         val record = location.load() ?: return null
         boundFiles?.let { (r, f) -> if (r == record) return f }

@@ -16,7 +16,13 @@ import com.qualifiedopinion.privatevault.vault.LocationStore
 import com.qualifiedopinion.privatevault.vault.NewItem
 import com.qualifiedopinion.privatevault.vault.VaultFiles
 import com.qualifiedopinion.privatevault.vault.VaultIndex
+import com.qualifiedopinion.privatevault.vault.VaultAvailability
 import com.qualifiedopinion.privatevault.vault.VaultSession
+import com.qualifiedopinion.privatevault.crypto.VaultCrypto
+import com.qualifiedopinion.privatevault.format.FileHeader
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -28,6 +34,8 @@ import org.junit.runner.RunWith
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.nio.ByteBuffer
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Release-build unlock verification (planning pack §6 PR3). `testBuildType` is `releaseCheck`, so this
@@ -120,6 +128,20 @@ class ReleaseUnlockTest {
         store.save(record)
         assertEquals(record, store.load())
         assertEquals(ItemRepository.idFromHex(record.vaultId).toHex(), record.vaultId)
+    }
+
+    @Test
+    fun unavailableVaultLocksEvenWhenUnwrapFinishesAfterRemoval() {
+        runBlocking {
+            withTimeout(5_000) { graph.monitor.state.first { it != VaultAvailability.Unknown } }
+        }
+        val locked = CountDownLatch(1)
+        graph.session.addLockListener { locked.countDown() }
+        graph.monitor.reportProviderFailure()
+        // Simulate the expensive unwrap finishing after the monitor has already reported removal.
+        graph.session.unlock(VaultCrypto.newDataKeyset(), FileHeader.newId())
+        assertTrue("late unlock was not locked", locked.await(5, TimeUnit.SECONDS))
+        assertFalse(graph.session.isUnlocked.value)
     }
 
     private companion object {

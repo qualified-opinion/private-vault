@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
-import android.os.SystemClock
 import android.provider.DocumentsContract.Document
 import com.qualifiedopinion.privatevault.format.VaultFormatException
 import kotlinx.coroutines.CoroutineScope
@@ -27,8 +26,9 @@ import java.io.IOException
  * Signals:
  * - a dynamic receiver for `MEDIA_EJECT`, `MEDIA_UNMOUNTED`, `MEDIA_REMOVED`, `MEDIA_BAD_REMOVAL`
  *   (immediately unavailable) and `MEDIA_MOUNTED` (triggers a full check), scheme `file`;
- * - [quickCheck]: grant + volume state, run before provider calls (at most every [QUICK_TTL_MS]) and
- *   by [pollWhileActive] every second while the UI is in the foreground;
+ * - [quickCheck]: grant + volume state, run by [pollWhileActive] every second while the UI is in
+ *   the foreground;
+ * - [ensureAvailable]: grant, volume and fresh vault-id check before every provider call;
  * - [fullCheck]: quick + `vault.meta` exists with the bound vault id + read-only flags. Run at start,
  *   on resume and on Retry;
  * - [reportProviderFailure]: any provider exception from [SafVaultStorage] means "vault gone".
@@ -45,9 +45,6 @@ class VolumeMonitor(
 ) {
     private val mutableState = MutableStateFlow<VaultAvailability>(VaultAvailability.Unknown)
     private var receiver: BroadcastReceiver? = null
-
-    @Volatile
-    private var lastQuickAt = 0L
 
     val state: StateFlow<VaultAvailability> = mutableState.asStateFlow()
 
@@ -77,25 +74,28 @@ class VolumeMonitor(
 
     /** Grant + volume state. Can only make [state] worse; see [AvailabilityRules.mergeQuick]. */
     fun quickCheck(): VaultAvailability {
-        lastQuickAt = SystemClock.elapsedRealtime()
         val record = location.load() ?: return setState(VaultAvailability.NotConfigured)
         val quick = quickFor(record)
         mutableState.update { AvailabilityRules.mergeQuick(it, quick) }
         return mutableState.value
     }
 
-    /** Throws [VaultUnavailableException] unless the vault is available. Cheap: re-checks at most every 500 ms. */
+    /** Checks the grant, volume and vault id before I/O; only Retry/resume can restore unavailable state. */
     fun ensureAvailable() {
-        val now = SystemClock.elapsedRealtime()
-        val current = if (now - lastQuickAt > QUICK_TTL_MS) quickCheck() else mutableState.value
-        if (current !is VaultAvailability.Available) throw VaultUnavailableException("vault folder not available")
+        val current = quickCheck()
+        val record = location.load()
+        val checked = if (current is VaultAvailability.Available && record != null) {
+            setState(checkFolder(record, current))
+        } else {
+            current
+        }
+        if (checked !is VaultAvailability.Available) throw VaultUnavailableException("vault folder not available")
     }
 
     /** The full check (§5.4). Blocking I/O: call off the main thread. */
     fun fullCheck(): VaultAvailability {
         val record = location.load()
         val quick = record?.let(::quickFor) ?: VaultAvailability.NotConfigured
-        lastQuickAt = SystemClock.elapsedRealtime()
         if (record == null || quick !is VaultAvailability.Available) return setState(quick)
         return setState(checkFolder(record, quick))
     }
@@ -165,7 +165,6 @@ class VolumeMonitor(
 
     companion object {
         const val POLL_INTERVAL_MS = 1_000L
-        const val QUICK_TTL_MS = 500L
 
         val MEDIA_GONE_ACTIONS = listOf(
             Intent.ACTION_MEDIA_EJECT,

@@ -33,10 +33,18 @@ java_bin="${JAVA_HOME:+$JAVA_HOME/bin/}java"
 
 out="$("$java_bin" -cp "$r8" com.android.tools.r8.tracereferences.TraceReferences --check \
   --lib "$android_jar" --source "$APP" --source "$TEST" 2>&1)"
+trace_status=$?
+if [[ $trace_status -ne 0 ]] && ! grep -qE 'Missing (class|method|field) ' <<<"$out"; then
+  echo "ERROR: TraceReferences failed (exit $trace_status):" >&2
+  echo "$out" >&2
+  exit 2
+fi
 
 # Gaps the device fills: hidden or newer framework API (the libraries guard these calls), optional
-# platform libraries (android.test.*) and OEM window extensions.
-PLATFORM='(android\.[a-z]+\.|androidx\.window\.(extensions|sidecar)\.|androidx\.test\.internal\.runner\.hidden\.)'
+# platform libraries (android.test.*) and OEM window extensions. Plus two JVM-only packages that
+# only kotlinx-coroutines' JVM debug agent (kotlinx.coroutines.debug.internal.AgentPremain)
+# references; Android never loads that class.
+PLATFORM='(android\.[a-z]+\.|androidx\.window\.(extensions|sidecar)\.|androidx\.test\.internal\.runner\.hidden\.|java\.lang\.instrument\.|sun\.misc\.)'
 missing="$(grep -oE 'Missing (class|method|field) [^(]+' <<<"$out" | sed 's/ *$//' | sort -u \
   | grep -vE "^Missing class $PLATFORM" \
   | grep -vE "^Missing (method|field) [^ ]+ $PLATFORM" || true)"

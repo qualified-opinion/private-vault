@@ -1,6 +1,7 @@
 package com.qualifiedopinion.privatevault.vault
 
 import android.content.Context
+import android.content.Intent
 import android.provider.DocumentsContract
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -9,11 +10,14 @@ import com.qualifiedopinion.privatevault.crypto.KeystoreKeyWrapper
 import com.qualifiedopinion.privatevault.crypto.PinKdf
 import com.qualifiedopinion.privatevault.format.FileHeader
 import com.qualifiedopinion.privatevault.format.FileType
+import com.qualifiedopinion.privatevault.format.toHex
 import com.qualifiedopinion.privatevault.vault.VaultFiles.Companion.ITEMS
 import com.qualifiedopinion.privatevault.vault.VaultFiles.Companion.STAGING
 import com.qualifiedopinion.privatevault.vault.VaultFiles.Companion.VAULT_META
 import com.qualifiedopinion.privatevault.vault.VaultFiles.Companion.VAULT_META_BAK
 import com.qualifiedopinion.privatevault.vault.VaultStorage.Companion.ROOT
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -45,7 +49,7 @@ class SafVaultStorageTest {
     private val keyAliases = mutableListOf<ByteArray>()
 
     private fun storage(readOnly: Boolean = false, preCheck: () -> Unit = {}) =
-        SafVaultStorage(tree, io, { readOnly }, preCheck) { failures += it }
+        SafVaultStorage(tree, io, { readOnly }, preCheck, onProviderFailure = { failures += it })
 
     @Before
     fun clean() {
@@ -60,6 +64,11 @@ class SafVaultStorageTest {
         TestDocumentsProvider.failAll = false
         TestDocumentsProvider.readOnly = false
         keyAliases.forEach { KeystoreKeyWrapper.forVault(it).deleteKey() }
+        context.contentResolver.persistedUriPermissions.filter { it.uri == tree }.forEach {
+            context.contentResolver.releasePersistableUriPermission(
+                tree, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
         base.deleteRecursively()
     }
 
@@ -207,6 +216,47 @@ class SafVaultStorageTest {
         assertThrows(VaultReadOnlyException::class.java) { VaultFiles(ro).createVault(fakeMeta(FileHeader.newId())) }
         assertFalse(File(base, "x").exists())
     }
+
+    @Test
+    fun monitorRechecksVaultIdBeforeOpeningACachedDocument() {
+        val id = FileHeader.newId()
+        VaultFiles(storage()).createVault(fakeMeta(id))
+        val monitor = monitorFor(id)
+        assertTrue(monitor.fullCheck() is VaultAvailability.Available)
+        val watched = monitor.storageFor(requireNotNull(monitorLocation(id).load()))
+        watched.openRead(ROOT, VAULT_META).close() // warm the document cache
+        File(base, VAULT_META).writeBytes(fakeMeta(FileHeader.newId()))
+        assertThrows(VaultUnavailableException::class.java) { watched.openRead(ROOT, VAULT_META) }
+        assertEquals(VaultAvailability.Unavailable(UnavailableReason.WRONG_VAULT), monitor.state.value)
+    }
+
+    @Test
+    fun monitorRechecksReadOnlyFlagsBeforeWriting() {
+        val id = FileHeader.newId()
+        VaultFiles(storage()).createVault(fakeMeta(id))
+        val monitor = monitorFor(id)
+        assertEquals(VaultAvailability.Available(false), monitor.fullCheck())
+        val watched = monitor.storageFor(requireNotNull(monitorLocation(id).load()))
+        TestDocumentsProvider.readOnly = true
+        assertThrows(VaultReadOnlyException::class.java) { watched.create(ROOT, "blocked") }
+        assertFalse(File(base, "blocked").exists())
+        assertEquals(VaultAvailability.Available(true), monitor.state.value)
+    }
+
+    private fun monitorLocation(id: ByteArray): VaultLocation =
+        VaultLocation(context, LocationStore(File(base, "location.json"))).also {
+            context.grantUriPermission(
+                context.packageName, tree,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION,
+            )
+            it.takeGrant(tree)
+            // Use the emulator's mounted primary volume with our test provider's tree.
+            it.save(LocationRecord(treeUri = tree.toString(), volume = TreeVolume.PRIMARY, vaultId = id.toHex()))
+        }
+
+    private fun monitorFor(id: ByteArray) =
+        VolumeMonitor(context, monitorLocation(id), io, CoroutineScope(Dispatchers.Unconfined))
 
     private val sha256Kdf = PinKdf { pin, salt, _ ->
         MessageDigest.getInstance("SHA-256").run {

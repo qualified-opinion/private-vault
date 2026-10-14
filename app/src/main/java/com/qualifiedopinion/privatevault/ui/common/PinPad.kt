@@ -17,10 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -29,47 +26,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.qualifiedopinion.privatevault.R
-import com.qualifiedopinion.privatevault.crypto.Pins
-
-/**
- * PIN digits as ASCII bytes in a fixed array (planning pack §4.3: never a `String`, no system
- * keyboard). Only the length is Compose state, so the digits never reach the snapshot system.
- */
-class PinBuffer {
-    private val digits = ByteArray(Pins.MAX_LENGTH)
-
-    var length by mutableIntStateOf(0)
-        private set
-
-    val canSubmit: Boolean get() = length >= Pins.MIN_LENGTH
-
-    fun push(digit: Int) {
-        require(digit in 0..9) { "not a digit" }
-        if (length < digits.size) {
-            digits[length] = ('0'.code + digit).toByte()
-            length++
-        }
-    }
-
-    fun pop() {
-        if (length > 0) {
-            length--
-            digits[length] = 0
-        }
-    }
-
-    /** Hands out a copy (the receiver owns and wipes it) and wipes this buffer. */
-    fun take(): ByteArray {
-        val out = digits.copyOf(length)
-        wipe()
-        return out
-    }
-
-    fun wipe() {
-        digits.fill(0)
-        length = 0
-    }
-}
 
 /** In-app PIN pad (6–12 digits). [onSubmit] receives a fresh array it must wipe. */
 @Composable

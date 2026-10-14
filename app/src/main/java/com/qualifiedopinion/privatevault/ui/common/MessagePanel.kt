@@ -25,7 +25,9 @@ fun MessagePanel(
     ) {
         Text(title, style = MaterialTheme.typography.headlineSmall)
         if (body != null) Text(body, style = MaterialTheme.typography.bodyLarge)
-        if (error != null) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+        if (error != null) {
+            Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+        }
         actions()
     }
 }
