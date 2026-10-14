@@ -4,7 +4,7 @@
 |---|---|---|
 | PR1 Scaffold, CI, lint, no-INTERNET gate | `feat/pr1-scaffold` | **Merged** (squash) as PR #1 → `main` @ 5ef91a6. |
 | PR2 Crypto core and tests | `feat/pr2-crypto` | Merged (squash) as PR #2 → main @ 74bfd5e |
-| PR3 Vault storage on SD (SAF folder) | `feat/pr3-storage` | Implemented locally; build, JVM checks and APK gates verified. Not pushed. Emulator/phone acceptance and completion commits pending (`.git` is read-only in this session), then Kiln review and Jan's OK. |
+| PR3 Vault storage on SD (SAF folder) | `feat/pr3-storage` | Open as PR #3 (CI-gated). Build, JVM checks and APK gates verified; emulator and phone acceptance pending, then Kiln review and Jan's OK. Engines: Claude Code (start), Codex gpt-6.1-sol high (finish, after Claude's session limit). |
 | PR4–PR8 | — | Not started |
 
 ## PR3 summary
@@ -15,7 +15,7 @@ Plan: `docs/plans/pr3.md`. Storage lives in `:core:vault`; setup/unlock and the 
 - `vault.meta` writes use synced `.tmp`, read-back, rename and `.bak` fallback. Startup cleans `.part` files. Item operations encrypt all three files; delete removes all three and updates the memory index. Read-only storage blocks mutations. Every monitored provider call checks the grant, volume and fresh vault id; writes refresh read-only flags. This adds provider queries, so full index-build latency needs measuring on the phone.
 - Added `AppGraph`, setup/unlock/error screens and a byte-array PIN pad. Setup calibrates Argon2, confirms data-loss risk and explicitly warns for a primary-volume folder. Re-pick requires the same vault id. No silent internal fallback. The availability/session collector also locks an unwrap that finishes after removal was reported.
 - Added crypto consumer rules for argon2kt JNI and Tink protobuf fields. `releaseCheck` is minified, non-debuggable and debug-signed; the app's `testBuildType` is `releaseCheck`. Test-only keep rules preserve our callable APIs and shared test runtime libraries, without blanket keeps for Tink or argon2kt. `scripts/check-releasecheck-refs.sh` checks the combined app/test APK references and rejects tracer failures.
-- Added an API 34 x86_64 emulator job using `reactivecircus/android-emulator-runner@v2` and its documented KVM udev rule. It runs crypto, SAF storage and minified app instrumentation. `SafBenchmarkTest` is explicitly excluded. The existing build job, permission gate and canary are unchanged; the permission gate still checks the real unsigned release APK. The new job has not run on GitHub (nothing pushed).
+- Added an API 34 x86_64 emulator job using `reactivecircus/android-emulator-runner@v2` and its documented KVM udev rule. It runs crypto, SAF storage and minified app instrumentation. `SafBenchmarkTest` is explicitly excluded. The existing build job, permission gate and canary are unchanged; the permission gate still checks the real unsigned release APK. The new job's first run is on the PR.
 
 ### PR3 verification log (local, 2026-10-15)
 
@@ -38,7 +38,7 @@ timeout 20m ./gradlew lint detekt testDebugUnitTest assembleRelease assembleDebu
 - **Instrumented tests could not run locally: no usable `/dev/kvm` and no connected target phone.** APKs compile only. SAF fixture tests, including fresh-id/read-only checks, and the minified real-Argon2/Keystore unlock test still require an emulator run. The 1 GiB benchmark has not run.
 - Compiler execution was switched to in-process for the final command because the Kotlin daemon tried to create its marker in the read-only home directory. Existing Gradle/detekt deprecation and unstripped JNI-library warnings remain; no build hang occurred.
 
-Completion commits are pending: `git add` failed with `Unable to create '/workspace/private-vault/.git/index.lock': Read-only file system`. HEAD remains `8adb86f`; the implementation and documentation changes are in the working tree. No push, GitHub operation or change to main was made. `docs/HANDOFF.md` records the logical commit groups.
+The completion work was committed and pushed afterwards as one commit (Codex's sandbox could not write `.git`, so the commit was made outside it).
 
 Kiln focus: runtime JNI/Keystore and SAF tests still need execution; measure OEM provider behaviour and the extra fresh-vault-id queries during a full index build; SAF rename/fsync durability remains provider-dependent. Recovery is not implemented until PR8, and background/screen-off lock and throttling remain PR7. Static APK checks cannot establish the phone's removal latency or card durability.
 
