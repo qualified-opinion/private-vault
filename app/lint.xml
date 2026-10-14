@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Version bumps are deliberate (pinned catalog); don't fail or nag on newer releases. -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+
+    <!-- Policy-relevant checks are promoted to errors. -->
+    <issue id="AllowBackup" severity="error" />
+    <issue id="DataExtractionRules" severity="error" />
+    <issue id="FullBackupContent" severity="error" />
+    <issue id="LogConditional" severity="error" />
+    <issue id="HardcodedDebugMode" severity="error" />
+    <issue id="SecureRandom" severity="error" />
+    <issue id="TrulyRandom" severity="error" />
+</lint>
