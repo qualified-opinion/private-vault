@@ -39,3 +39,9 @@ Out of scope: SAF I/O, `vault.meta` atomic replace, `ItemMetaCodec`/JSON (no `ko
 ## Open questions
 - Argon2 calibration target is 0.8–1.5 s at setup. Needs measuring on the target phone (instrumented test logs it).
 - Instrumented tests can't run on this box (no emulator); Jan runs them on the device.
+
+## Status
+Done on `feat/pr2-crypto` (not pushed). The JVM acceptance items pass, and the 3 GiB run is logged in `docs/logs/pr2-large-test.md`. Instrumented tests compile but still need a device run. Evidence is in `docs/STATUS.md`.
+Changes from the plan:
+- `EofVerifyingChannel` was added inside `VaultCrypto.kt`. Tink's seekable channel returns 0, not −1, at EOF.
+- Test fakes are in `KeyWrapFakes.kt`. `Pins` tests and `fileSizeFor` were added for PR4's space and FAT32 checks.
