@@ -27,7 +27,6 @@ import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -64,10 +63,10 @@ class ReleaseUnlockTest {
             0,
             context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE,
         )
-        // R8 renamed a class that nothing keeps by name: proof that this is shrunk/obfuscated code.
-        assertThrows(ClassNotFoundException::class.java) {
-            Class.forName("com.qualifiedopinion.privatevault.ui.VaultViewModel")
-        }
+        // R8 rewrites stack-trace source files to "r8-map-id-<hash>" (retrace mapping), which only happens in
+        // shrunk/obfuscated code. Class names are not a reliable signal: some are kept by library rules.
+        val sourceFile = Throwable().stackTrace.first().fileName.orEmpty()
+        assertTrue("expected R8-processed code, got source file '$sourceFile'", sourceFile.startsWith("r8-map-id"))
     }
 
     @Test
