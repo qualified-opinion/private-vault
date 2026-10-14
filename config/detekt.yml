@@ -1,0 +1,21 @@
+# Overrides on top of detekt's default config (buildUponDefaultConfig = true).
+build:
+  maxIssues: 0
+
+naming:
+  FunctionNaming:
+    # Composables are PascalCase by convention.
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    constantPattern: '[A-Z][A-Za-z0-9]*'
+
+style:
+  MagicNumber:
+    # Theme colour literals are not magic numbers.
+    excludes: ['**/test/**', '**/androidTest/**', '**/ui/theme/**']
+  UnusedPrivateMember:
+    ignoreAnnotated: ['Preview']
+
+complexity:
+  LongParameterList:
+    ignoreAnnotated: ['Composable']
