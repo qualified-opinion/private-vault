@@ -124,6 +124,17 @@ private class EofVerifyingChannel(
 ) : SeekableByteChannel by inner {
     private var endVerified = false
 
+    // Delegation would return Tink's channel here, so `ch.position(p).read(buf)` would skip the EOF check.
+    override fun position(newPosition: Long): SeekableByteChannel {
+        inner.position(newPosition)
+        return this
+    }
+
+    override fun truncate(size: Long): SeekableByteChannel {
+        inner.truncate(size)
+        return this
+    }
+
     override fun read(dst: ByteBuffer): Int {
         val pos = inner.position()
         val size = inner.size()

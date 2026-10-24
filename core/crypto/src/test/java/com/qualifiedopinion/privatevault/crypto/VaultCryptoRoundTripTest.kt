@@ -7,6 +7,7 @@ import com.qualifiedopinion.privatevault.format.FileType
 import com.qualifiedopinion.privatevault.format.VaultFormatException
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.nio.ByteBuffer
@@ -85,6 +86,17 @@ class VaultCryptoRoundTripTest {
         java.io.RandomAccessFile(file, "rw").use { it.setLength(VaultCrypto.fileSizeFor(0)) }
         assertRejected("seekable") { crypto.verifySeekable(file, header, 0) }
         assertRejected("stream") { crypto.verifyStream(file, header, 0) }
+    }
+
+    @Test
+    fun chainedPositionKeepsTheEofCheck() {
+        crypto.encryptGenerated(file, header, 100)
+        java.io.RandomAccessFile(file, "rw").use { it.setLength(VaultCrypto.fileSizeFor(0)) }
+        FileChannel.open(file.toPath(), StandardOpenOption.READ).use { fc ->
+            val ch = crypto.newSeekableDecryptingChannel(fc, header)
+            assertSame(ch, ch.position(0))
+            assertRejected("chained position") { ch.position(0).read(ByteBuffer.allocate(16)) }
+        }
     }
 
     @Test
