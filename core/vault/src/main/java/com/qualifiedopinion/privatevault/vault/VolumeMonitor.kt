@@ -15,7 +15,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.IOException
@@ -45,6 +44,12 @@ class VolumeMonitor(
 ) {
     private val mutableState = MutableStateFlow<VaultAvailability>(VaultAvailability.Unknown)
     private var receiver: BroadcastReceiver? = null
+
+    /** Guards [goneCount] and every write to [mutableState]. */
+    private val stateLock = Any()
+
+    /** Bumped each time the vault is reported gone, so a check that started earlier can't undo it. */
+    private var goneCount = 0L
 
     val state: StateFlow<VaultAvailability> = mutableState.asStateFlow()
 
@@ -76,16 +81,20 @@ class VolumeMonitor(
     fun quickCheck(): VaultAvailability {
         val record = location.load() ?: return setState(VaultAvailability.NotConfigured)
         val quick = quickFor(record)
-        mutableState.update { AvailabilityRules.mergeQuick(it, quick) }
-        return mutableState.value
+        return synchronized(stateLock) {
+            val merged = AvailabilityRules.mergeQuick(mutableState.value, quick)
+            val wasGone = mutableState.value is VaultAvailability.Unavailable
+            if (merged is VaultAvailability.Unavailable && !wasGone) markGone(merged) else setState(merged)
+        }
     }
 
     /** Checks the grant, volume and vault id before I/O; only Retry/resume can restore unavailable state. */
     fun ensureAvailable() {
+        val since = goneSnapshot()
         val current = quickCheck()
         val record = location.load()
         val checked = if (current is VaultAvailability.Available && record != null) {
-            setState(checkFolder(record, current))
+            publishChecked(checkFolder(record, current), since)
         } else {
             current
         }
@@ -94,10 +103,11 @@ class VolumeMonitor(
 
     /** The full check (§5.4). Blocking I/O: call off the main thread. */
     fun fullCheck(): VaultAvailability {
+        val since = goneSnapshot()
         val record = location.load()
         val quick = record?.let(::quickFor) ?: VaultAvailability.NotConfigured
-        if (record == null || quick !is VaultAvailability.Available) return setState(quick)
-        return setState(checkFolder(record, quick))
+        if (record == null || quick !is VaultAvailability.Available) return publishChecked(quick, since)
+        return publishChecked(checkFolder(record, quick), since)
     }
 
     private fun quickFor(record: LocationRecord): VaultAvailability =
@@ -124,7 +134,7 @@ class VolumeMonitor(
 
     /** A provider call failed: the vault is gone until a full check says otherwise (§5.4). */
     fun reportProviderFailure() {
-        setState(VaultAvailability.Unavailable(UnavailableReason.PROVIDER_ERROR))
+        markGone(VaultAvailability.Unavailable(UnavailableReason.PROVIDER_ERROR))
     }
 
     /** Polls [quickCheck] every second until the calling coroutine is cancelled (e.g. the UI stops). */
@@ -152,15 +162,27 @@ class VolumeMonitor(
         if (!AvailabilityRules.broadcastConcerns(record.volume, intent.data?.path)) return
         if (intent.action in MEDIA_GONE_ACTIONS) {
             // On the main thread, right away: the app locks as soon as it sees this (§6 PR3: within 1 s).
-            setState(VaultAvailability.Unavailable(UnavailableReason.VOLUME_MISSING))
+            markGone(VaultAvailability.Unavailable(UnavailableReason.VOLUME_MISSING))
         } else {
             scope.launch(Dispatchers.IO) { fullCheck() }
         }
     }
 
-    private fun setState(s: VaultAvailability): VaultAvailability {
+    private fun setState(s: VaultAvailability): VaultAvailability = synchronized(stateLock) {
         mutableState.value = s
-        return s
+        s
+    }
+
+    private fun markGone(s: VaultAvailability.Unavailable): VaultAvailability = synchronized(stateLock) {
+        goneCount++
+        setState(s)
+    }
+
+    private fun goneSnapshot(): Long = synchronized(stateLock) { goneCount }
+
+    /** Publishes a check that started at [since]; see [AvailabilityRules.mergeChecked]. */
+    private fun publishChecked(checked: VaultAvailability, since: Long): VaultAvailability = synchronized(stateLock) {
+        setState(AvailabilityRules.mergeChecked(mutableState.value, checked, goneDuringCheck = goneCount != since))
     }
 
     companion object {

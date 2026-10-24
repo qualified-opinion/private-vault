@@ -131,6 +131,11 @@ class SmallPartsTest {
         assertEquals(ro, AvailabilityRules.mergeQuick(ok, ro))
         assertEquals(VaultAvailability.Unknown, AvailabilityRules.mergeQuick(VaultAvailability.Unknown, ok))
 
+        // A check that finished after the vault was reported gone can't bring it back; a worse result still counts.
+        assertEquals(noVol, AvailabilityRules.mergeChecked(noVol, ok, goneDuringCheck = true))
+        assertEquals(wrong, AvailabilityRules.mergeChecked(noVol, wrong, goneDuringCheck = true))
+        assertEquals(ok, AvailabilityRules.mergeChecked(noVol, ok, goneDuringCheck = false))
+
         assertTrue(AvailabilityRules.broadcastConcerns("1234-ABCD", "/storage/1234-abcd"))
         assertTrue(AvailabilityRules.broadcastConcerns("1234-ABCD", "/storage/1234-ABCD/"))
         assertFalse(AvailabilityRules.broadcastConcerns("1234-ABCD", "/storage/9999-0000"))
