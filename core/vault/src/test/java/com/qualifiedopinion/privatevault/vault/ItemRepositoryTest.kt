@@ -9,6 +9,7 @@ import com.qualifiedopinion.privatevault.vault.VaultFiles.Companion.STAGING
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -200,6 +201,15 @@ class ItemRepositoryTest {
         assertThrows(VaultLockedException::class.java) { repo.openData(item.id) }
         assertThrows(VaultLockedException::class.java) { repo.loadAll() }
         assertThrows(VaultLockedException::class.java) { add(bytes(5)) }
+    }
+
+    @Test
+    fun chainedPositionReturnsTheTrackedChannel() {
+        val item = add(bytes(5000))
+        val ch = repo.openData(item.id)
+        assertSame(ch, ch.position(10))
+        ch.position(0).close() // must untrack, not just close the inner channel
+        session.lock()
     }
 
     @Test

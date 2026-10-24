@@ -269,6 +269,17 @@ private class TrackedChannel(
     private val inner: SeekableByteChannel,
     private val session: VaultSession,
 ) : SeekableByteChannel by inner {
+    // Delegation would return the inner channel, so `ch.position(p).close()` would skip untracking.
+    override fun position(newPosition: Long): SeekableByteChannel {
+        inner.position(newPosition)
+        return this
+    }
+
+    override fun truncate(size: Long): SeekableByteChannel {
+        inner.truncate(size)
+        return this
+    }
+
     override fun close() {
         session.untrack(this)
         inner.close()
