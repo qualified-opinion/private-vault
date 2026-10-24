@@ -59,6 +59,17 @@ object AvailabilityRules {
         else -> current
     }
 
+    /**
+     * Merges the result of a full or pre-I/O check into the current state. A check reads the folder,
+     * so it can take a while; if the vault was reported gone while it ran ([goneDuringCheck]), an
+     * "available" result is stale and must not undo that. A worse result is always taken.
+     */
+    fun mergeChecked(
+        current: VaultAvailability,
+        checked: VaultAvailability,
+        goneDuringCheck: Boolean,
+    ): VaultAvailability = if (goneDuringCheck && checked is VaultAvailability.Available) current else checked
+
     /** Does a `MEDIA_*` broadcast for [path] (`file:///storage/<uuid>`) concern a vault on [volume]? */
     fun broadcastConcerns(volume: String, path: String?): Boolean {
         if (path.isNullOrEmpty()) return true // can't tell: assume the worst
