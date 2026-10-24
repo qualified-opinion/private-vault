@@ -13,7 +13,12 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+
+    // Instrumented tests run against R8 output (planning pack §6 PR3): argon2kt (JNI) and Tink ship
+    // without (complete) shrinker rules, so unlock must be proven on a minified build, not on debug.
+    testBuildType = "releaseCheck"
 
     buildTypes {
         release {
@@ -24,6 +29,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+        }
+        // Test-only: the release build (same R8 config) signed with the debug key so the androidTest
+        // APK can instrument it. Never distributed; the permission gate checks app-release-unsigned.apk.
+        create("releaseCheck") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            // Keeps only our own entry points the tests call; see the file for why that can't mask
+            // a Tink/argon2kt shrinking problem.
+            proguardFile("proguard-releasecheck.pro")
         }
     }
 
@@ -55,6 +70,12 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
 
     testImplementation(libs.junit)
+
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 }
