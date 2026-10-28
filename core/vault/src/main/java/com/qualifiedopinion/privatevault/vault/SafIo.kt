@@ -105,15 +105,6 @@ class SafIo(private val resolver: ContentResolver) {
     fun documentUri(treeUri: Uri, documentId: String): Uri =
         DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
 
-    /** Columns are in [PROJECTION] order. */
-    private fun Cursor.entry(): Entry = Entry(
-        documentId = getString(COL_ID),
-        name = getString(COL_NAME).orEmpty(),
-        mimeType = getString(COL_MIME).orEmpty(),
-        size = if (isNull(COL_SIZE)) -1L else getLong(COL_SIZE),
-        flags = if (isNull(COL_FLAGS)) 0 else getInt(COL_FLAGS),
-    )
-
     companion object {
         const val MIME_BINARY = "application/octet-stream"
         private const val NO_DESCRIPTOR = "provider returned no descriptor"
@@ -136,6 +127,15 @@ class SafIo(private val resolver: ContentResolver) {
             Document.COLUMN_MIME_TYPE,
             Document.COLUMN_SIZE,
             Document.COLUMN_FLAGS,
+        )
+
+        /** Columns are in [PROJECTION] order. */
+        private fun Cursor.entry(): Entry = Entry(
+            documentId = getString(COL_ID),
+            name = getString(COL_NAME).orEmpty(),
+            mimeType = getString(COL_MIME).orEmpty(),
+            size = if (isNull(COL_SIZE)) -1L else getLong(COL_SIZE),
+            flags = if (isNull(COL_FLAGS)) 0 else getInt(COL_FLAGS),
         )
     }
 }
