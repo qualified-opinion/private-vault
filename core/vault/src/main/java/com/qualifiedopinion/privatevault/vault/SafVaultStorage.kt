@@ -105,6 +105,13 @@ class SafVaultStorage(
         return deleted
     }
 
+    /** Free bytes as the provider reports them for the tree's root (`primary`, the SD card's UUID, …). */
+    override fun freeBytes(): Long? {
+        val authority = treeUri.authority ?: return null
+        val rootId = DocumentsContract.getTreeDocumentId(treeUri).substringBefore(':')
+        return provider { io.availableBytes(authority, rootId) }
+    }
+
     /** Flags of the tree root (e.g. `FLAG_DIR_SUPPORTS_CREATE`, absent on a read-only mount). */
     fun rootFlags(): Int = provider { io.query(treeUri, uriOf(rootDocumentId)).flags }
 

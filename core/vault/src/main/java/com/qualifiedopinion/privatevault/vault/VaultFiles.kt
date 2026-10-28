@@ -102,8 +102,12 @@ class VaultFiles(val storage: VaultStorage) {
 
     /**
      * Startup cleanup (§3.1, §6 PR4): deletes `*.part` files in `staging/` (and in `items/`, where a
-     * crash between move and rename can leave one). Returns how many were deleted. Does nothing on a
+     * crash between move and rename can leave one), then data and thumbnail files whose `.vmeta` is
+     * gone (an interrupted create or delete). Returns how many were deleted. Does nothing on a
      * read-only folder.
+     *
+     * An item's `.vdat` exists before its `.vmeta` while it is being created, so this must never run
+     * while an import is in progress (the app holds one write lock for both).
      */
     fun cleanStaging(): Int {
         if (isReadOnly) return 0
@@ -113,7 +117,15 @@ class VaultFiles(val storage: VaultStorage) {
                 if (name.endsWith(PART_SUFFIX) && storage.delete(dir, name)) deleted++
             }
         }
-        return deleted
+        return deleted + deleteOrphans()
+    }
+
+    private fun deleteOrphans(): Int {
+        val names = storage.list(ITEMS).toSet()
+        return names.count { name ->
+            val id = name.removeSuffix(DATA_SUFFIX).removeSuffix(THUMB_SUFFIX)
+            id != name && isItemId(id) && metaName(id) !in names && storage.delete(ITEMS, name)
+        }
     }
 
     fun requireWritable() {

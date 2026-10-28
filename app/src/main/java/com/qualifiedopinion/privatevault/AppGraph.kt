@@ -1,8 +1,13 @@
 package com.qualifiedopinion.privatevault
 
 import android.content.Context
+import android.net.Uri
 import com.qualifiedopinion.privatevault.crypto.Argon2Kdf
 import com.qualifiedopinion.privatevault.crypto.KeystoreKeyWrapper
+import com.qualifiedopinion.privatevault.importer.ImportController
+import com.qualifiedopinion.privatevault.importer.ImportSource
+import com.qualifiedopinion.privatevault.importer.ImportTarget
+import com.qualifiedopinion.privatevault.importer.UriImportSource
 import com.qualifiedopinion.privatevault.vault.ItemRepository
 import com.qualifiedopinion.privatevault.vault.LocationRecord
 import com.qualifiedopinion.privatevault.vault.SafIo
@@ -19,6 +24,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.IOException
 
 /**
@@ -41,6 +48,13 @@ class AppGraph(context: Context) {
     val session = VaultSession(index)
     val kdf = Argon2Kdf()
     val keys = VaultKeys(kdf, KeystoreKeyWrapper::forVault)
+
+    /** Held by anything that writes items: import and startup cleanup must never overlap (§6 PR4). */
+    val writeLock = Mutex()
+
+    val importer = ImportController(scope, session, writeLock) {
+        files()?.let { f -> ImportTarget(repository(f), f.storage::freeBytes) }
+    }
 
     private var boundFiles: Pair<LocationRecord, VaultFiles>? = null
 
@@ -67,14 +81,18 @@ class AppGraph(context: Context) {
 
     fun repository(files: VaultFiles) = ItemRepository(files, session, index)
 
-    /** Startup (§3.1, §5.4): check the folder, then delete stale `.part` files in `staging/`. */
-    private fun startupCheck() {
+    fun importSources(uris: List<Uri>): List<ImportSource> = uris.map { UriImportSource(appContext, it) }
+
+    /** Startup (§3.1, §5.4): check the folder, then delete stale `.part` and orphaned item files. */
+    private suspend fun startupCheck() {
         val state = monitor.fullCheck()
         if (state is VaultAvailability.Available && !state.readOnly) {
-            try {
-                files()?.cleanStaging()
-            } catch (@Suppress("SwallowedException") e: IOException) {
-                // The monitor has already been told; the UI shows the error screen.
+            writeLock.withLock {
+                try {
+                    files()?.cleanStaging()
+                } catch (@Suppress("SwallowedException") e: IOException) {
+                    // The monitor has already been told; the UI shows the error screen.
+                }
             }
         }
     }

@@ -56,6 +56,8 @@ class FileVaultStorage(private val root: File, private val readOnly: Boolean = f
         return Files.deleteIfExists(file(dir, name).toPath())
     }
 
+    override fun freeBytes(): Long? = root.usableSpace
+
     private fun moveFile(src: File, dst: File) {
         if (!src.isFile) throw FileNotFoundException("no such file")
         // No ATOMIC_MOVE: on POSIX it silently replaces an existing target.

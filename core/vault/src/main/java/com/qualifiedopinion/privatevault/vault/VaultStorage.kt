@@ -42,6 +42,9 @@ interface VaultStorage {
     /** Deletes a file. Returns false if it didn't exist. */
     fun delete(dir: String, name: String): Boolean
 
+    /** Free bytes on the volume that holds the vault, or null if the backend can't tell. */
+    fun freeBytes(): Long? = null
+
     companion object {
         const val ROOT = ""
     }
