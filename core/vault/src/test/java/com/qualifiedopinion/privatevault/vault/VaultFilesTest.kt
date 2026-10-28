@@ -215,12 +215,40 @@ class VaultFilesTest {
         root.child(STAGING, "x.part").writeBytes(ByteArray(10))
         root.child(ITEMS, VaultFiles.partName(id)).writeBytes(ByteArray(10))
         root.child(ITEMS, VaultFiles.dataName(id)).writeBytes(ByteArray(10))
+        root.child(ITEMS, VaultFiles.metaName(id)).writeBytes(ByteArray(10))
         root.child(STAGING, "keep.txt").writeBytes(ByteArray(1))
 
         assertEquals(3, files.cleanStaging())
         assertEquals(listOf("keep.txt"), FileVaultStorage(root).list(STAGING))
-        assertEquals(listOf(VaultFiles.dataName(id)), FileVaultStorage(root).list(ITEMS))
+        assertEquals(listOf(VaultFiles.dataName(id), VaultFiles.metaName(id)), FileVaultStorage(root).list(ITEMS))
         assertEquals(0, files.cleanStaging())
+    }
+
+    @Test
+    fun stagingCleanupDeletesDataAndThumbnailsWithoutMetadata() {
+        val root = tmp.newFolder()
+        val files = newFiles(root)
+        files.createVault(fakeVaultMeta())
+        val kept = "0123456789abcdef0123456789abcdef"
+        val orphan = "fedcba9876543210fedcba9876543210"
+        for (name in listOf(VaultFiles.dataName(kept), VaultFiles.thumbName(kept), VaultFiles.metaName(kept))) {
+            root.child(ITEMS, name).writeBytes(ByteArray(10))
+        }
+        root.child(ITEMS, VaultFiles.dataName(orphan)).writeBytes(ByteArray(10))
+        root.child(ITEMS, VaultFiles.thumbName(orphan)).writeBytes(ByteArray(10))
+        root.child(ITEMS, "notes.vdat").writeBytes(ByteArray(1)) // not an item id: left alone
+
+        assertEquals(2, files.cleanStaging())
+        assertEquals(
+            listOf(VaultFiles.dataName(kept), VaultFiles.metaName(kept), VaultFiles.thumbName(kept), "notes.vdat"),
+            FileVaultStorage(root).list(ITEMS),
+        )
+    }
+
+    @Test
+    fun fileStorageReportsFreeSpace() {
+        val free = FileVaultStorage(tmp.newFolder()).freeBytes()
+        assertTrue(free != null && free > 0)
     }
 
     @Test

@@ -1,7 +1,9 @@
 package com.qualifiedopinion.privatevault.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,8 +34,14 @@ import com.qualifiedopinion.privatevault.ui.unlocked.UnlockedScreen
 fun VaultScreen(vm: VaultViewModel, modifier: Modifier = Modifier) {
     val screen by vm.screen.collectAsStateWithLifecycle()
     val items by vm.items.collectAsStateWithLifecycle()
+    val importState by vm.importState.collectAsStateWithLifecycle()
     val pickSetup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree(), vm::onFolderPicked)
     val pickAgain = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree(), vm::onRepicked)
+    // The system photo picker: read access to the chosen items only, no storage permission.
+    val pickMedia = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(),
+        vm::onImportPicked,
+    )
 
     Box(modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState())) {
         when (val s = screen) {
@@ -45,7 +53,14 @@ fun VaultScreen(vm: VaultViewModel, modifier: Modifier = Modifier) {
             is Screen.SetPin -> SetPinScreen(s.confirming, s.error, vm::onSetupPin)
             Screen.ConfirmDataLoss -> ConfirmDataLossScreen(vm::onCreateVault, vm::onPickAnother)
             is Screen.Locked -> LockScreen(s.error, vm::onUnlock)
-            is Screen.Unlocked -> UnlockedScreen(items.size, s.readOnly, vm::onLock)
+            is Screen.Unlocked -> UnlockedScreen(
+                itemCount = items.size,
+                readOnly = s.readOnly,
+                importState = importState,
+                onImport = { pickMedia.launch(PickVisualMediaRequest(PickVisualMedia.ImageAndVideo)) },
+                onImportDismissed = vm::onImportDismissed,
+                onLock = vm::onLock,
+            )
             is Screen.Unavailable -> VaultUnavailableScreen(s.reason, s.error, vm::onRetry) {
                 pickAgain.launch(vm.initialPickerUri())
             }

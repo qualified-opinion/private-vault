@@ -5,7 +5,8 @@
 | PR1 Scaffold, CI, lint, no-INTERNET gate | `feat/pr1-scaffold` | **Merged** (squash) as PR #1 → `main` @ 5ef91a6. |
 | PR2 Crypto core and tests | `feat/pr2-crypto` | Merged (squash) as PR #2 → main @ 74bfd5e |
 | PR3 Vault storage on SD (SAF folder) | `feat/pr3-storage` | Open as PR #3 (CI-gated). Build, JVM checks and APK gates verified; emulator and phone acceptance pending, then Kiln review and Jan's OK. Engines: Claude Code (start), Codex gpt-6.1-sol high (finish, after Claude's session limit). |
-| PR4–PR8 | — | Not started |
+| PR4 Import photos and videos | `claude/project-thread-av3x1w` | Draft PR into `feat/pr3-storage`. Plan and chosen defaults: `docs/plans/pr4.md` (need Jan's OK). CI-built only; phone checks pending. |
+| PR5–PR8 | — | Not started |
 
 ## PR3 summary
 

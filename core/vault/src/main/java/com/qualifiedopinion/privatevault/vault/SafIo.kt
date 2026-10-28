@@ -89,17 +89,21 @@ class SafIo(private val resolver: ContentResolver) {
         }
     }
 
+    /** Free bytes on the provider root [rootId], or null if the provider doesn't report it. */
+    fun availableBytes(authority: String, rootId: String): Long? {
+        val cursor = resolver.query(DocumentsContract.buildRootsUri(authority), ROOT_PROJECTION, null, null, null)
+            ?: return null
+        return cursor.use { c ->
+            var bytes: Long? = null
+            while (bytes == null && c.moveToNext()) {
+                if (c.getString(COL_ROOT_ID) == rootId && !c.isNull(COL_ROOT_BYTES)) bytes = c.getLong(COL_ROOT_BYTES)
+            }
+            bytes
+        }
+    }
+
     fun documentUri(treeUri: Uri, documentId: String): Uri =
         DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
-
-    /** Columns are in [PROJECTION] order. */
-    private fun Cursor.entry(): Entry = Entry(
-        documentId = getString(COL_ID),
-        name = getString(COL_NAME).orEmpty(),
-        mimeType = getString(COL_MIME).orEmpty(),
-        size = if (isNull(COL_SIZE)) -1L else getLong(COL_SIZE),
-        flags = if (isNull(COL_FLAGS)) 0 else getInt(COL_FLAGS),
-    )
 
     companion object {
         const val MIME_BINARY = "application/octet-stream"
@@ -109,6 +113,13 @@ class SafIo(private val resolver: ContentResolver) {
         private const val COL_MIME = 2
         private const val COL_SIZE = 3
         private const val COL_FLAGS = 4
+        private const val COL_ROOT_ID = 0
+        private const val COL_ROOT_BYTES = 1
+
+        private val ROOT_PROJECTION = arrayOf(
+            DocumentsContract.Root.COLUMN_ROOT_ID,
+            DocumentsContract.Root.COLUMN_AVAILABLE_BYTES,
+        )
 
         private val PROJECTION = arrayOf(
             Document.COLUMN_DOCUMENT_ID,
@@ -116,6 +127,15 @@ class SafIo(private val resolver: ContentResolver) {
             Document.COLUMN_MIME_TYPE,
             Document.COLUMN_SIZE,
             Document.COLUMN_FLAGS,
+        )
+
+        /** Columns are in [PROJECTION] order. */
+        private fun Cursor.entry(): Entry = Entry(
+            documentId = getString(COL_ID),
+            name = getString(COL_NAME).orEmpty(),
+            mimeType = getString(COL_MIME).orEmpty(),
+            size = if (isNull(COL_SIZE)) -1L else getLong(COL_SIZE),
+            flags = if (isNull(COL_FLAGS)) 0 else getInt(COL_FLAGS),
         )
     }
 }

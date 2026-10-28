@@ -13,6 +13,7 @@ import com.qualifiedopinion.privatevault.crypto.Pins
 import com.qualifiedopinion.privatevault.crypto.WrongPinException
 import com.qualifiedopinion.privatevault.format.VaultFormatException
 import com.qualifiedopinion.privatevault.format.toHex
+import com.qualifiedopinion.privatevault.importer.ImportState
 import com.qualifiedopinion.privatevault.vault.AvailabilityRules
 import com.qualifiedopinion.privatevault.vault.ItemMeta
 import com.qualifiedopinion.privatevault.vault.ItemRepository
@@ -82,6 +83,9 @@ class VaultViewModel(private val graph: AppGraph) : ViewModel() {
 
     /** The in-memory index (empty while locked). */
     val items: StateFlow<List<ItemMeta>> = graph.index.items
+
+    /** The running or last finished import (PR4). */
+    val importState: StateFlow<ImportState> = graph.importer.state
 
     /** The folder being set up (not yet saved as the vault location). */
     private var pendingTree: Uri? = null
@@ -207,6 +211,15 @@ class VaultViewModel(private val graph: AppGraph) : ViewModel() {
 
     fun onLock() {
         graph.session.lock()
+    }
+
+    /** Photos and videos chosen in the system photo picker. An empty list means the picker was cancelled. */
+    fun onImportPicked(uris: List<Uri>) {
+        graph.importer.start(graph.importSources(uris))
+    }
+
+    fun onImportDismissed() {
+        graph.importer.dismiss()
     }
 
     /** §5.4 Retry: a full check (grant, volume, vault id). Success lands on the lock screen. */
