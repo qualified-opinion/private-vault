@@ -1,8 +1,8 @@
 # PR4 plan: Import photos and videos
 
-Branch: `claude/project-thread-av3x1w` (cut from `feat/pr3-storage` @ baa3aba; PR3 is still a draft). The planning pack (§6 PR4) was not available in this session, so the defaults below were chosen here and need Jan's OK.
+Branch: `claude/project-thread-av3x1w` (cut from `feat/pr3-storage` @ baa3aba; PR3 is still a draft). The planning pack (§6 PR4) was not available when this was written (it has since been rebuilt as `docs/PLANNING_PACK.md`), so the defaults below were chosen here. Jan confirmed them on 2026-10-28.
 
-## Defaults chosen (please confirm)
+## Defaults (confirmed by Jan, 2026-10-28)
 | Question | Default | Why |
 |---|---|---|
 | Delete originals after import? | **No.** Originals are only read. The summary says they are still in the gallery. | Deleting needs a system prompt per batch (`MediaStore.createDeleteRequest`) and is the one step that can lose data. Better as its own small PR once import is proven on the phone. |

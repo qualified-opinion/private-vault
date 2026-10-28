@@ -1,13 +1,13 @@
 # Handoff log
 
-Protocol (planning pack §9): before an engine switch, commit `wip(prN): <state>`, then add an entry at the top of this file. The incoming engine reads this file, `docs/STATUS.md` and `docs/plans/prN.md` first, then runs the tests before changing anything.
+Protocol (planning pack §9, `docs/PLANNING_PACK.md`): before an engine switch, commit `wip(prN): <state>`, then add an entry at the top of this file. The incoming engine reads this file, `docs/STATUS.md` and `docs/plans/prN.md` first, then runs the tests before changing anything.
 
 ## Handoff 2026-10-28 Claude Code (cloud)→next session
 Branch: `claude/project-thread-av3x1w`, based on `feat/pr3-storage` @ baa3aba (PR3 still a draft, so PR4 stacks on it).
 Done: PR4 import (plan `docs/plans/pr4.md`), plus review findings F8 (orphan cleanup) and F9 (one write lock for import and startup cleanup).
 Failing tests: see the PR's CI. No Android SDK in this session, so nothing was built locally.
-Decisions made: the planning pack was not available; defaults are listed in the plan's table and need Jan's OK (originals kept, picker, no duplicate check, lock cancels import).
-Open questions for Jan: confirm the defaults; run the phone checks in the PR description after PR3's phone checks.
+Decisions made: PR4 defaults in the plan's table, confirmed by Jan 2026-10-28 (originals kept, picker, no duplicate check, lock cancels import). The planning pack was rebuilt as `docs/PLANNING_PACK.md` (v2) with the same section numbers.
+Open questions for Jan: planning pack §9 questions; run the phone checks in the PR description after PR3's phone checks.
 
 ## Handoff 2026-10-15 07:26 Asia/Manila Codex→next session / Kiln
 Branch: `feat/pr3-storage` @ `8adb86f` + uncommitted completion changes; main remains `74bfd5e`.
